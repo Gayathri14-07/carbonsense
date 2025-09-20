@@ -1,6 +1,7 @@
+// Dashboard.js
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Container, Row, Col, Card, Table, Tabs, Tab } from "react-bootstrap";
+import { Container, Row, Col, Card, Table } from "react-bootstrap";
 import {
   LineChart,
   Line,
@@ -10,9 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import { FaRobot, FaBolt, FaCoins } from "react-icons/fa";
-import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
-import { db } from "../firebase"; // Your Firestore DB
+import { FaRobot, FaCoins } from "react-icons/fa";
 
 export default function Dashboard() {
   const [activities, setActivities] = useState([]);
@@ -20,43 +19,40 @@ export default function Dashboard() {
   const [carbonCoins, setCarbonCoins] = useState(0);
   const [chartData, setChartData] = useState([]);
   const [floatingCoins, setFloatingCoins] = useState([]);
-  const [activeTab, setActiveTab] = useState("AI");
 
+  const activityTypes = ["AI", "Streaming", "Browsing", "Storage", "Crypto", "SmartCity"];
+
+  // Live demo activity generator
   useEffect(() => {
-    // Listen to all activities in real-time, latest 100
-    const q = query(collection(db, "aiUsage"), orderBy("timestamp", "desc"), limit(100));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data());
+    const interval = setInterval(() => {
+      const randomType = activityTypes[Math.floor(Math.random() * activityTypes.length)];
+      const randomCO2 = Math.random() * 0.05; // small random CO2 emission
+      const newActivity = {
+        activityType: randomType,
+        description: `Demo ${randomType} activity`,
+        co2EmittedKg: randomCO2,
+        timestamp: Date.now()
+      };
 
-      setActivities(data);
+      setActivities((prev) => [...prev, newActivity]);
+      setTotalCO2((prev) => prev + randomCO2);
 
-      // Total CO2
-      const total = data.reduce((sum, item) => sum + (item.estimated_kg || 0), 0);
-      setTotalCO2(total);
+      const coinsAdded = Math.max(1, Math.floor(randomCO2 * 100));
+      setCarbonCoins((prev) => prev + coinsAdded);
 
-      // CarbonCoins
-      const coins = data.reduce((sum, item) => sum + Math.max(1, Math.floor((item.estimated_kg || 0) * 100)), 0);
-      setCarbonCoins(coins);
+      setFloatingCoins((prev) => [...prev, ...Array(coinsAdded).fill(0)]);
 
-      // Floating coins effect
-      setFloatingCoins(prev => [...prev, ...Array(Math.min(5, data.length)).fill(0)]);
+      setChartData((prev) => [
+        ...prev.slice(-19),
+        { time: new Date(newActivity.timestamp).toLocaleTimeString(), CO2: newActivity.co2EmittedKg }
+      ]);
+    }, 2000);
 
-      // Chart data for active tab
-      const chartPoints = data
-        .filter(item => item.activityType === activeTab)
-        .slice(-20)
-        .map(item => ({
-          time: new Date(item.timestamp?.seconds * 1000 || Date.now()).toLocaleTimeString(),
-          CO2: item.estimated_kg || 0
-        }));
-      setChartData(chartPoints);
-    });
-
-    return () => unsubscribe();
-  }, [activeTab]);
+    return () => clearInterval(interval);
+  }, [activityTypes]);
 
   return (
-    <Container fluid className="min-vh-100 bg-dark text-light py-4 position-relative">
+    <Container className="min-vh-100 bg-dark text-light py-4 position-relative">
       {/* Floating Coins Animation */}
       <AnimatePresence>
         {floatingCoins.map((_, index) => (
@@ -75,7 +71,7 @@ export default function Dashboard() {
               zIndex: 999
             }}
             onAnimationComplete={() =>
-              setFloatingCoins(prev => prev.filter((_, i) => i !== index))
+              setFloatingCoins((prev) => prev.filter((_, i) => i !== index))
             }
           >
             💰
@@ -104,13 +100,6 @@ export default function Dashboard() {
         </Col>
         <Col md={4}>
           <Card className="text-center p-3 neon-card mb-3">
-            <FaBolt size={40} className="mb-2 animate-pulse" />
-            <h5 className="neon-text">Total Events</h5>
-            <p>{activities.length}</p>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="text-center p-3 neon-card mb-3 position-relative">
             <FaCoins size={40} className="mb-2 animate-spin" />
             <h5 className="neon-text">CarbonCoins</h5>
             <p>{carbonCoins}</p>
@@ -118,45 +107,57 @@ export default function Dashboard() {
         </Col>
       </Row>
 
-      {/* Tabs for activity types */}
-      <Tabs activeKey={activeTab} onSelect={k => setActiveTab(k)} className="mb-3">
-        {["AI","Streaming","Browsing","Storage","Crypto","SmartCity"].map(type => (
-          <Tab eventKey={type} title={type} key={type}>
-            <Table striped bordered hover variant="dark">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>CO₂ (kg)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activities.filter(a => a.activityType === type).map((a, idx) => (
-                  <tr key={idx}>
-                    <td>{a.activityType}</td>
-                    <td>{a.description}</td>
-                    <td>{(a.estimated_kg || 0).toFixed(5)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+      {/* CO₂ Chart */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="neon-card p-3">
+            <h5 className="neon-text mb-3">Live CO₂ Emissions (kg)</h5>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid stroke="#00FFFF" strokeDasharray="5 5" />
+                <XAxis dataKey="time" stroke="#00FFFF" />
+                <YAxis stroke="#00FFFF" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#111",
+                    border: "1px solid #00FFFF",
+                    color: "#00FFFF"
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="CO2"
+                  stroke="#FF00FF"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+      </Row>
 
-            {/* Chart for this type */}
-            <Card className="neon-card p-3 mt-3">
-              <h5 className="neon-text mb-3">{type} CO₂ Chart</h5>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={chartData}>
-                  <CartesianGrid stroke="#00FFFF" strokeDasharray="5 5" />
-                  <XAxis dataKey="time" stroke="#00FFFF" />
-                  <YAxis stroke="#00FFFF" />
-                  <Tooltip contentStyle={{ backgroundColor: "#111", border: "1px solid #00FFFF", color: "#00FFFF" }} />
-                  <Line type="monotone" dataKey="CO2" stroke="#FF00FF" strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </Tab>
-        ))}
-      </Tabs>
+      {/* Activities Table */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
+        <Table striped bordered hover variant="dark" className="neon-card">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Description</th>
+              <th>CO₂ (kg)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.map((act, idx) => (
+              <tr key={idx}>
+                <td>{act.activityType}</td>
+                <td>{act.description}</td>
+                <td>{act.co2EmittedKg.toFixed(5)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </motion.div>
     </Container>
   );
 }
