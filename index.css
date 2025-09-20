@@ -1,0 +1,46 @@
+body {
+  background-color: #000;
+  font-family: monospace;
+}
+
+.neon-text {
+  color: #0ff;
+  text-shadow: 0 0 5px #0ff, 0 0 10px #0ff, 0 0 20px #f0f, 0 0 40px #f0f;
+}
+
+.neon-card {
+  background-color: #111;
+  border: 2px solid #0ff;
+  box-shadow: 0 0 10px #0ff, 0 0 20px #f0f;
+}
+
+.glow {
+  text-shadow: 0 0 5px #0ff, 0 0 10px #f0f, 0 0 20px #ff0, 0 0 30px #f0f;
+}
+
+.animate-bounce {
+  animation: bounce 2s infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+.animate-spin {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
